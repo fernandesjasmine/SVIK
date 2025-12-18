@@ -11,8 +11,8 @@ import Breadcrumb from '../components/Breadcrumb';
 // Fallback base URL for API
 const baseURL = process.env.REACT_APP_API_BASE_URL 
 // Base URLs for images
-const bigImageBaseURL = 'https://vyr.svikinfotech.in/assets/media/big';
-const thumbImageBaseURL = 'https://vyr.svikinfotech.in/assets/media/thumb';
+const bigImageBaseURL = 'https://vyr.svikinfotech.in/assets/media/big/';
+const thumbImageBaseURL = 'https://vyr.svikinfotech.in/assets/media/thumb/';
 const fallbackImageURL = 'https://vyr.svikinfotech.in/assets/media/no-image.jpg';
 
 export default function ViewTilePage() {
@@ -22,6 +22,7 @@ export default function ViewTilePage() {
   const [error, setError] = useState('');
   const [lightboxImage, setLightboxImage] = useState(null);
   const [imageDimensions, setImageDimensions] = useState({ width: 'auto', height: 'auto' });
+  const [availableVariants, setAvailableVariants] = useState([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -109,11 +110,46 @@ export default function ViewTilePage() {
 
     fetchTileDetails();
 
+    
     return () => {
       isMounted = false;
       source.cancel('Request canceled due to component unmount');
     };
   }, [tileId]);
+  useEffect(() => {
+  if (!tile?.sku_code) return;
+
+  let isMounted = true;
+  const detectedVariants = [];
+
+  const checkVariant = (index) => {
+    const variantName = `${tile.sku_code}-f${index}`;
+    const img = new Image();
+
+    img.src = `${thumbImageBaseURL}${variantName}.jpg`;
+
+    img.onload = () => {
+      if (!isMounted) return;
+
+      detectedVariants.push(variantName);
+      checkVariant(index + 1); // check next variant
+    };
+
+    img.onerror = () => {
+      // stop checking when a variant does not exist
+      if (isMounted) {
+        setAvailableVariants(detectedVariants);
+      }
+    };
+  };
+
+  checkVariant(1);
+
+  return () => {
+    isMounted = false;
+  };
+}, [tile]);
+
 
   // Load natural dimensions of the lightbox image, prioritizing actual square size
   useEffect(() => {
@@ -178,15 +214,7 @@ export default function ViewTilePage() {
     setImageDimensions({ width: 'auto', height: 'auto' });
   };
 
-  // Generate variant image names (e.g., sku_codef-1, sku_codef-2, etc.)
-  const getVariantImages = () => {
-    if (!tile?.sku_code) return [];
-    const variants = [];
-    for (let i = 1; i <= 15; i++) { // Assuming up to 15 variant images
-      variants.push(`${tile.sku_code}-f${i}`);
-    }
-    return variants;
-  };
+  
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-green-1000 text-gray-800 dark:text-gray-200 sticky top-0">
@@ -287,12 +315,12 @@ export default function ViewTilePage() {
                 <p className="text-gray-500 dark:text-gray-400 italic">No tile data available</p>
               )}
             </div>
-
+              
             {/* Images Container */}
             <div className="mt-8 bg-gradient-to-br from-white to-teal-50 dark:from-gray-800 dark:to-teal-900 rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-500 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
               <h3 className="text-2xl font-semibold text-teal-800 dark:text-teal-200 mb-2">Images</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7">
-                {getVariantImages().map((variant, index) => (
+                {availableVariants.map((variant, index) => (
                   <div
                     key={index}
                     className="relative group cursor-pointer"
